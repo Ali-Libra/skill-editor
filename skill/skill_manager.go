@@ -1,22 +1,74 @@
 package skill
 
-import "skill-editor/node"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"skill-editor/node"
+)
 
 type Skill struct {
-	ID   int
-	Name string
-	Node node.Node
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Times       int
+	Times5      int
+	Hero        int
+	MasterSkill int
+	Stages      []int
+	Active      int
+
+	Nodes []node.Node
 }
 
 type SkillManager struct {
-	Skills []Skill
+	Skills   []Skill
+	filePath string
 }
 
 func NewSkillManager() *SkillManager {
-	return &SkillManager{
-		Skills: []Skill{
-			{ID: 1, Name: "单骑"},
-			{ID: 2, Name: "武圣"},
-		},
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "."
 	}
+	filePath := filepath.Join(cwd, "skill.json")
+
+	manager := &SkillManager{
+		Skills:   []Skill{},
+		filePath: filePath,
+	}
+
+	manager.load()
+	return manager
+}
+
+func (m *SkillManager) AddSkill(id, name string) {
+	m.Skills = append(m.Skills, Skill{ID: id, Name: name})
+}
+
+func (m *SkillManager) RemoveSkill(target *Skill) {
+	for i := range m.Skills {
+		if &m.Skills[i] == target {
+			m.Skills = append(m.Skills[:i], m.Skills[i+1:]...)
+			return
+		}
+	}
+}
+
+func (m *SkillManager) Save() error {
+	data, err := json.MarshalIndent(m.Skills, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(m.filePath, data, 0644)
+}
+
+func (m *SkillManager) load() {
+	if _, err := os.Stat(m.filePath); os.IsNotExist(err) {
+		return
+	}
+	data, err := os.ReadFile(m.filePath)
+	if err != nil {
+		return
+	}
+	_ = json.Unmarshal(data, &m.Skills)
 }

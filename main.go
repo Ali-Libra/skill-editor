@@ -25,12 +25,12 @@ func main() {
 	nodeUI := node.NewNodeUI()
 
 	// 默认显示技能界面
-	content.Objects = []fyne.CanvasObject{skillUI}
+	content.Objects = []fyne.CanvasObject{skillUI.Split}
 
 	// 顶部按钮：技能 / 节点
 	btnSkill := widget.NewButton("技能", func() {
 		curUI = "技能"
-		content.Objects = []fyne.CanvasObject{skillUI}
+		content.Objects = []fyne.CanvasObject{skillUI.Split}
 		content.Refresh()
 	})
 
@@ -42,9 +42,10 @@ func main() {
 
 	// 保存按钮
 	btnSave := widget.NewButton("保存", func() {
-		if curUI == "技能" {
-			// skillUI.Save()
-		} else if curUI == "节点" {
+		switch curUI {
+		case "技能":
+			skillUI.Save()
+		case "节点":
 			nodeUI.Save()
 		}
 	})
@@ -53,8 +54,8 @@ func main() {
 	topBar := container.NewHBox(
 		btnSkill,
 		btnNode,
-		layout.NewSpacer(),
 		btnSave,
+		layout.NewSpacer(),
 	)
 
 	w.SetContent(container.NewBorder(topBar, nil, nil, nil, content))
