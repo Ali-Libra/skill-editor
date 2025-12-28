@@ -239,20 +239,23 @@ func (ui *NodeUI) showAddPortDialog(ports *[]Port, showDefault bool) {
 func (ui *NodeUI) showCreateNodeDialog() {
 	idEntry := widget.NewEntry()
 	nameEntry := widget.NewEntry()
+	typeSelectEntry := widget.NewSelect([]string{NODETYPE_TRIGGER, NODETYPE_EFFECT}, nil)
+	typeSelectEntry.Selected = NODETYPE_TRIGGER
 
 	form := widget.NewForm(
 		widget.NewFormItem("ID", idEntry),
 		widget.NewFormItem("名称", nameEntry),
+		widget.NewFormItem("类型", typeSelectEntry),
 	)
 
 	win := fyne.CurrentApp().Driver().AllWindows()[0]
 
 	dialog.ShowForm("创建节点", "确认", "取消", form.Items, func(ok bool) {
-		if !ok || idEntry.Text == "" || nameEntry.Text == "" {
+		if !ok || idEntry.Text == "" || nameEntry.Text == "" || typeSelectEntry.Selected == "" {
 			return
 		}
 
-		ui.manager.AddNode(idEntry.Text, nameEntry.Text)
+		ui.manager.AddNode(idEntry.Text, nameEntry.Text, typeSelectEntry.Selected)
 		ui.list.Refresh()
 
 		// 自动选中新节点，蓝色框 + 编辑区同步

@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 )
 
+const NODETYPE_TRIGGER = "触发器"
+const NODETYPE_EFFECT = "效果器"
+
 type Port struct {
 	Name         string `json:"name"`
 	Type         string `json:"type"`
@@ -46,10 +49,11 @@ func NewNodeManager() *NodeManager {
 }
 
 // AddNode 新增节点
-func (m *NodeManager) AddNode(id, name string) {
+func (m *NodeManager) AddNode(id, name, nodeType string) {
 	m.Nodes = append(m.Nodes, Node{
 		ID:   id,
 		Name: name,
+		Type: nodeType,
 	})
 }
 

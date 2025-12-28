@@ -2,6 +2,7 @@ package skill
 
 import (
 	"skill-editor/node"
+	"skill-editor/skill/uihelp"
 	"skill-editor/tool"
 
 	"fyne.io/fyne/v2"
@@ -9,26 +10,32 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// SkillEditor 负责技能编辑画布
 type SkillEditor struct {
 	skill       *Skill
-	canvas      *fyne.Container
-	viewport    *Viewport
 	nodeManager *node.NodeManager
-	scale       float32
+
+	viewport *Viewport
+	canvas   *fyne.Container
+	scale    float32
+
+	editorWidget *SkillEditorCanvas
 }
 
-// NewSkillEditor 创建编辑器
 func NewSkillEditor(nodeMgr *node.NodeManager) *SkillEditor {
 	canvas := container.NewWithoutLayout()
-	viewport := NewViewport(canvas)
-
 	editor := &SkillEditor{
-		canvas:      canvas,
-		viewport:    viewport,
 		nodeManager: nodeMgr,
+		canvas:      canvas,
 		scale:       1.0,
 	}
+
+	editorWidget := NewSkillEditorCanvas(editor)
+	editor.editorWidget = editorWidget
+	editorWidget.Resize(fyne.NewSize(2000, 2000)) // 或者根据 viewport 大小动态调整
+	editor.canvas.Add(editorWidget)
+
+	editor.viewport = NewViewport(canvas)
+
 	return editor
 }
 
@@ -37,16 +44,18 @@ func (e *SkillEditor) Root() fyne.CanvasObject {
 }
 
 func (e *SkillEditor) Refresh() {
-	e.canvas.Objects = nil
 	if e.skill == nil {
 		return
 	}
 
+	// 清空 canvas 中原来的节点（保留 editorWidget）
+	newObjects := []fyne.CanvasObject{e.editorWidget}
+
 	// 主节点
 	main := widget.NewCard(e.skill.Name, "", widget.NewLabel("技能主节点"))
-	main.Resize(fyne.NewSize(200, 120))
+	main.Resize(fyne.NewSize(150, 200))
 	main.Move(fyne.NewPos(100, 50))
-	e.canvas.Add(main)
+	newObjects = append(newObjects, main)
 
 	// 技能节点
 	for i := range e.skill.Nodes {
@@ -54,9 +63,10 @@ func (e *SkillEditor) Refresh() {
 		w := NewNodeWidget(n, e)
 		w.Resize(fyne.NewSize(180, 100))
 		w.Move(fyne.NewPos(n.X, n.Y))
-		e.canvas.Add(w)
+		newObjects = append(newObjects, w)
 	}
 
+	e.canvas.Objects = newObjects
 	e.canvas.Refresh()
 }
 
@@ -67,6 +77,10 @@ func (e *SkillEditor) SetSkill(skill *Skill) {
 
 // 添加节点到画布（鼠标点击位置）
 func (e *SkillEditor) AddNode(n *node.Node, pos fyne.Position) {
+	if e.skill == nil {
+		return
+	}
+
 	sn := &SkillNode{
 		ID:       tool.GenerateUniqueID(),
 		NodeID:   n.ID,
@@ -82,33 +96,102 @@ func (e *SkillEditor) AddNode(n *node.Node, pos fyne.Position) {
 
 // ---------------- 右键菜单 ----------------
 func (e *SkillEditor) ShowNodeRightClickMenu(pos fyne.Position) {
-	createTrigger := fyne.NewMenuItem("创建触发器", nil)
-	createEffector := fyne.NewMenuItem("创建效果器", nil)
-
-	createTrigger.ChildMenu = &fyne.Menu{
-		Items: buildNodeMenuItems(e.nodeManager, "trigger", e, pos),
-	}
-	createEffector.ChildMenu = &fyne.Menu{
-		Items: buildNodeMenuItems(e.nodeManager, "effector", e, pos),
-	}
-
-	menu := fyne.NewMenu("", createTrigger, createEffector)
 	win := fyne.CurrentApp().Driver().AllWindows()[0]
-	widget.ShowPopUpMenuAtPosition(menu, win.Canvas(), pos)
+
+	// 一级菜单按钮
+	triggerBtn := uihelp.NewHoverButton("创建触发器", nil)
+	effectBtn := uihelp.NewHoverButton("创建效果器", nil)
+
+	// 一级菜单容器
+	menuContainer := container.NewVBox(triggerBtn, effectBtn)
+	popup := widget.NewPopUp(menuContainer, win.Canvas())
+	popup.Move(pos)
+	popup.Show()
+
+	// 一级悬停显示二级
+	triggerBtn.OnMouseIn = func() {
+		e.showSubMenu("trigger", pos, triggerBtn, popup)
+	}
+	effectBtn.OnMouseIn = func() {
+		e.showSubMenu("effect", pos, effectBtn, popup)
+	}
 }
 
-func buildNodeMenuItems(manager *node.NodeManager, nodeType string, editor *SkillEditor, pos fyne.Position) []*fyne.MenuItem {
-	var items []*fyne.MenuItem
-	for i := range manager.Nodes {
-		n := manager.Nodes[i]
+// 显示二级菜单
+func (e *SkillEditor) showSubMenu(nodeType string, pos fyne.Position, parentBtn *uihelp.HoverButton, parentPopup *widget.PopUp) {
+	win := fyne.CurrentApp().Driver().AllWindows()[0]
+
+	buttons := e.buildNodeMenuButtons(nodeType, pos)
+	canvasObjs := make([]fyne.CanvasObject, len(buttons))
+	for i, b := range buttons {
+		canvasObjs[i] = b
+	}
+
+	subMenu := container.NewVBox(canvasObjs...)
+	subPopup := widget.NewPopUp(subMenu, win.Canvas())
+
+	// 位置在父按钮右侧
+	subPopup.Move(parentBtn.Position().Add(fyne.NewPos(parentBtn.Size().Width, 0)))
+	subPopup.Show()
+}
+
+func (e *SkillEditor) buildNodeMenuButtons(nodeType string, pos fyne.Position) []*widget.Button {
+	var buttons []*widget.Button
+	for i := range e.nodeManager.Nodes {
+		n := e.nodeManager.Nodes[i]
 		if n.Type != nodeType {
 			continue
 		}
+		// 捕获 n
 		nodeCopy := n
-		item := fyne.NewMenuItem(nodeCopy.Name, func() {
-			editor.AddNode(&nodeCopy, pos)
+		btn := widget.NewButton(nodeCopy.Name, func() {
+			e.AddNode(&nodeCopy, pos)
 		})
-		items = append(items, item)
+		buttons = append(buttons, btn)
 	}
-	return items
+	return buttons
 }
+
+// ---------------- 自定义 Canvas Widget ----------------
+type SkillEditorCanvas struct {
+	widget.BaseWidget
+	editor *SkillEditor
+}
+
+func NewSkillEditorCanvas(editor *SkillEditor) *SkillEditorCanvas {
+	c := &SkillEditorCanvas{editor: editor}
+	c.ExtendBaseWidget(c)
+	return c
+}
+
+// 右键
+func (c *SkillEditorCanvas) TappedSecondary(ev *fyne.PointEvent) {
+	c.editor.ShowNodeRightClickMenu(ev.AbsolutePosition)
+}
+
+// 拖动画布
+func (c *SkillEditorCanvas) Dragged(e *fyne.DragEvent) {
+	c.editor.viewport.Dragged(e)
+}
+
+func (c *SkillEditorCanvas) DragEnd() {
+	c.editor.viewport.DragEnd()
+}
+
+// 缩放
+func (c *SkillEditorCanvas) Scrolled(e *fyne.ScrollEvent) {
+	c.editor.viewport.Scrolled(e)
+}
+
+// 必须实现 CreateRenderer
+func (c *SkillEditorCanvas) CreateRenderer() fyne.WidgetRenderer {
+	return &skillEditorCanvasRenderer{}
+}
+
+type skillEditorCanvasRenderer struct{}
+
+func (r *skillEditorCanvasRenderer) Layout(size fyne.Size)        {}
+func (r *skillEditorCanvasRenderer) MinSize() fyne.Size           { return fyne.NewSize(1, 1) }
+func (r *skillEditorCanvasRenderer) Refresh()                     {}
+func (r *skillEditorCanvasRenderer) Objects() []fyne.CanvasObject { return nil }
+func (r *skillEditorCanvasRenderer) Destroy()                     {}

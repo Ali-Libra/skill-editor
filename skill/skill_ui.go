@@ -64,6 +64,11 @@ func NewSkillUI(nodeManager *node.NodeManager) *SkillUI {
 	skillUI.Split = container.NewHSplit(left, right)
 	skillUI.Split.Offset = 0.2
 
+	// ✅ 默认选中第一个技能（如果有）
+	if len(manager.Skills) > 0 {
+		list.Select(0)                      // 选中列表第一个
+		editor.SetSkill(&manager.Skills[0]) // 刷新右侧编辑器
+	}
 	return skillUI
 }
 
@@ -138,16 +143,6 @@ type SkillListItem struct {
 	index int
 }
 
-//	func NewNodeListItem(n *Node, ui *NodeUI, index int) *NodeListItem {
-//		item := &NodeListItem{
-//			Label: *widget.NewLabel(""),
-//			node:  n,
-//			ui:    ui,
-//			index: index,
-//		}
-//		item.ExtendBaseWidget(item)
-//		return item
-//	}
 func NewSkillListItem(skill *Skill, ui *SkillUI, index int) *SkillListItem {
 	item := &SkillListItem{
 		Label: *widget.NewLabel(""),
