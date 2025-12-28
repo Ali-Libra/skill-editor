@@ -1,10 +1,13 @@
 package skill
 
 import (
+	"fmt"
 	"skill-editor/model"
 	"skill-editor/node"
 	"skill-editor/skill/uihelp"
 	"skill-editor/tool"
+	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -52,9 +55,7 @@ func (e *SkillEditor) Refresh() {
 	newObjects := []fyne.CanvasObject{e.listener}
 
 	// 主节点
-	main := widget.NewCard("主节点", "", widget.NewLabel(""))
-	main.Resize(fyne.NewSize(150, 200))
-	main.Move(fyne.NewPos(100, 50))
+	main := e.CreateMainNodeWidget()
 	newObjects = append(newObjects, main)
 
 	// 技能节点
@@ -68,6 +69,106 @@ func (e *SkillEditor) Refresh() {
 
 	e.canvas.Objects = newObjects
 	e.canvas.Refresh()
+}
+
+func (e *SkillEditor) CreateMainNodeWidget() fyne.CanvasObject {
+	if e.skill == nil {
+		return widget.NewLabel("未加载技能")
+	}
+
+	// ID 和 Name 用 Label 显示（不可编辑）
+	idLabel := widget.NewLabel(e.skill.ID)
+	nameLabel := widget.NewLabel(e.skill.Name)
+
+	// 可编辑字段
+	timesEntry := widget.NewEntry()
+	timesEntry.SetText(fmt.Sprintf("%d", e.skill.Times))
+	timesEntry.OnChanged = func(s string) {
+		if v, err := strconv.Atoi(s); err == nil {
+			e.skill.Times = v
+		}
+	}
+
+	times5Entry := widget.NewEntry()
+	times5Entry.SetText(fmt.Sprintf("%d", e.skill.Times5))
+	times5Entry.OnChanged = func(s string) {
+		if v, err := strconv.Atoi(s); err == nil {
+			e.skill.Times5 = v
+		}
+	}
+
+	heroEntry := widget.NewEntry()
+	heroEntry.SetText(fmt.Sprintf("%d", e.skill.Hero))
+	heroEntry.OnChanged = func(s string) {
+		if v, err := strconv.Atoi(s); err == nil {
+			e.skill.Hero = v
+		}
+	}
+
+	masterSkillEntry := widget.NewEntry()
+	masterSkillEntry.SetText(fmt.Sprintf("%d", e.skill.MasterSkill))
+	masterSkillEntry.OnChanged = func(s string) {
+		if v, err := strconv.Atoi(s); err == nil {
+			e.skill.MasterSkill = v
+		}
+	}
+
+	activeEntry := widget.NewEntry()
+	activeEntry.SetText(fmt.Sprintf("%d", e.skill.Active))
+	activeEntry.OnChanged = func(s string) {
+		if v, err := strconv.Atoi(s); err == nil {
+			e.skill.Active = v
+		}
+	}
+
+	stagesEntry := widget.NewEntry()
+	stagesEntry.SetText(fmt.Sprintf("%v", e.skill.Stages))
+	stagesEntry.OnChanged = func(s string) {
+		parts := strings.Split(s, ",")
+		var stages []int
+		for _, p := range parts {
+			if v, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
+				stages = append(stages, v)
+			}
+		}
+		e.skill.Stages = stages
+	}
+
+	// Form 显示主节点参数
+	form := &widget.Form{
+		Items: []*widget.FormItem{
+			{Text: "ID", Widget: idLabel},
+			{Text: "Name", Widget: nameLabel},
+			{Text: "Times", Widget: timesEntry},
+			{Text: "Times5", Widget: times5Entry},
+			{Text: "Hero", Widget: heroEntry},
+			{Text: "MasterSkill", Widget: masterSkillEntry},
+			{Text: "Active", Widget: activeEntry},
+			{Text: "Stages", Widget: stagesEntry},
+		},
+	}
+
+	// 固定宽度，高度自适应，超过最大高度滚动
+	const nodeWidth = 220
+	const maxHeight = 500 // 最大显示高度，超过出现滚动
+
+	scroll := container.NewVScroll(form)
+	scroll.SetMinSize(fyne.NewSize(nodeWidth, 0)) // 高度由内容决定
+
+	// 计算 Form 的最小高度
+	formMin := form.MinSize()
+	height := float32(maxHeight)
+	if (formMin.Height + 80) < float32(height) {
+		height = formMin.Height + 80
+	}
+	scroll.Resize(fyne.NewSize(nodeWidth, height))
+
+	// 用 Card 包裹
+	mainCard := widget.NewCard("主节点", "", scroll)
+	mainCard.Resize(scroll.Size())
+	mainCard.Move(fyne.NewPos(100, 50))
+
+	return mainCard
 }
 
 func (e *SkillEditor) SetSkill(skill *Skill) {
