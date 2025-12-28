@@ -46,7 +46,7 @@ func NewNodeUI() *NodeUI {
 	createBtn := widget.NewButton("创建新节点", func() { ui.showCreateNodeDialog() })
 	left := container.NewBorder(nil, createBtn, nil, nil, ui.list)
 	split := container.NewHSplit(left, ui.editor)
-	split.Offset = 0.3
+	split.Offset = 0.2
 
 	ui.Split = split
 	return ui

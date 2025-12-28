@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"skill-editor/node"
 )
 
 type Skill struct {
@@ -17,7 +16,7 @@ type Skill struct {
 	Stages      []int
 	Active      int
 
-	Nodes []node.Node
+	Nodes []SkillNode
 }
 
 type SkillManager struct {

@@ -21,7 +21,8 @@ func main() {
 	content := container.NewStack()
 
 	// 创建技能和节点 UI
-	skillUI := skill.NewSkillUI()
+	nodeManager := node.NewNodeManager()
+	skillUI := skill.NewSkillUI(nodeManager)
 	nodeUI := node.NewNodeUI()
 
 	// 默认显示技能界面
@@ -29,12 +30,18 @@ func main() {
 
 	// 顶部按钮：技能 / 节点
 	btnSkill := widget.NewButton("技能", func() {
+		if curUI == "技能" {
+			return
+		}
 		curUI = "技能"
 		content.Objects = []fyne.CanvasObject{skillUI.Split}
 		content.Refresh()
 	})
 
 	btnNode := widget.NewButton("节点", func() {
+		if curUI == "节点" {
+			return
+		}
 		curUI = "节点"
 		content.Objects = []fyne.CanvasObject{nodeUI.Split}
 		content.Refresh()

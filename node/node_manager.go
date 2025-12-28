@@ -15,6 +15,7 @@ type Port struct {
 type Node struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
+	Type    string `json:"type"`
 	Params  []Port `json:"params,omitempty"`
 	Inputs  []Port `json:"inputs,omitempty"`
 	Outputs []Port `json:"outputs,omitempty"`
