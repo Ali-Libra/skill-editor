@@ -97,17 +97,13 @@ func (e *SkillEditor) AddNode(n *node.Node, pos fyne.Position) {
 func (e *SkillEditor) ShowNodeRightClickMenu(ev *fyne.PointEvent) {
 	win := fyne.CurrentApp().Driver().AllWindows()[0]
 
-	// 一级菜单按钮
-	triggerMenu := fyne.NewMenuItem(node.NODETYPE_TRIGGER, nil)
-	triggerMenu.ChildMenu = e.getChildMenu(node.NODETYPE_TRIGGER, ev.AbsolutePosition)
+	contextMenu := fyne.NewMenu("")
+	for _, nodeType := range node.NodeTypes {
+		mainMenu := fyne.NewMenuItem(nodeType, nil)
+		mainMenu.ChildMenu = e.getChildMenu(nodeType, ev.AbsolutePosition)
+		contextMenu.Items = append(contextMenu.Items, mainMenu)
+	}
 
-	effectMenu := fyne.NewMenuItem(node.NODETYPE_EFFECT, nil)
-	effectMenu.ChildMenu = e.getChildMenu(node.NODETYPE_EFFECT, ev.AbsolutePosition)
-
-	contextMenu := fyne.NewMenu("", // 主菜单名称为空（右键菜单无需标题）
-		triggerMenu,
-		effectMenu,
-	)
 	widget.ShowPopUpMenuAtPosition(
 		contextMenu,
 		win.Canvas(),
