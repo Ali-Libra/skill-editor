@@ -239,8 +239,8 @@ func (ui *NodeUI) showAddPortDialog(ports *[]Port, showDefault bool) {
 func (ui *NodeUI) showCreateNodeDialog() {
 	idEntry := widget.NewEntry()
 	nameEntry := widget.NewEntry()
-	typeSelectEntry := widget.NewSelect(NodeTypes, nil)
-	typeSelectEntry.Selected = NODETYPE_TRIGGER
+	typeSelectEntry := widget.NewSelect(model.NodeTypes, nil)
+	typeSelectEntry.Selected = model.NODETYPE_TRIGGER
 
 	form := widget.NewForm(
 		widget.NewFormItem("ID", idEntry),

@@ -1,6 +1,7 @@
 package skill
 
 import (
+	"skill-editor/model"
 	"skill-editor/node"
 	"skill-editor/skill/uihelp"
 	"skill-editor/tool"
@@ -51,7 +52,7 @@ func (e *SkillEditor) Refresh() {
 	newObjects := []fyne.CanvasObject{e.listener}
 
 	// 主节点
-	main := widget.NewCard(e.skill.Name, "", widget.NewLabel("技能主节点"))
+	main := widget.NewCard("主节点", "", widget.NewLabel(""))
 	main.Resize(fyne.NewSize(150, 200))
 	main.Move(fyne.NewPos(100, 50))
 	newObjects = append(newObjects, main)
@@ -98,7 +99,7 @@ func (e *SkillEditor) ShowNodeRightClickMenu(ev *fyne.PointEvent) {
 	win := fyne.CurrentApp().Driver().AllWindows()[0]
 
 	contextMenu := fyne.NewMenu("")
-	for _, nodeType := range node.NodeTypes {
+	for _, nodeType := range model.NodeTypes {
 		mainMenu := fyne.NewMenuItem(nodeType, nil)
 		mainMenu.ChildMenu = e.getChildMenu(nodeType, ev.AbsolutePosition)
 		contextMenu.Items = append(contextMenu.Items, mainMenu)
