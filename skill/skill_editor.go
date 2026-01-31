@@ -16,15 +16,28 @@ import (
 
 type SkillEditor struct {
 	skill       *Skill
-	nodeManager *node.NodeManager
+	nodeManager *node.NodeManager //可使用的子节点类型
 
-	viewport *Viewport
-	canvas   *fyne.Container
-	scale    float32
-
-	listener *uihelp.AreaListener
+	viewport          *Viewport
+	canvas            *fyne.Container
+	scale             float32
+	listener          *uihelp.AreaListener
+	connectionManager *ConnectionManager // 连接管理器
 }
 
+// 节点布局常量
+const (
+	nodeStartX          = float32(200) // 第一个节点的 X 坐标
+	nodeHorizontalSpace = float32(220) // 节点间的水平间隔
+	nodeVerticalPos     = float32(300) // 所有节点的 Y 坐标
+)
+
+// getNodePosition 根据节点在 Nodes 中的索引计算其位置
+func (e *SkillEditor) getNodePosition(nodeIndex int) fyne.Position {
+	xPos := nodeStartX + float32(nodeIndex)*nodeHorizontalSpace
+	yPos := nodeVerticalPos
+	return fyne.NewPos(xPos, yPos)
+}
 func NewSkillEditor(nodeMgr *node.NodeManager) *SkillEditor {
 	canvas := container.NewWithoutLayout()
 	editor := &SkillEditor{
@@ -58,12 +71,24 @@ func (e *SkillEditor) Refresh() {
 	main := e.CreateMainNodeWidget()
 	newObjects = append(newObjects, main)
 
-	// 技能节点
+	// 技能节点 - 固定间隔水平排列
+	const nodeWidth = float32(180)
+
 	for i := range e.skill.Nodes {
 		n := &e.skill.Nodes[i]
-		w := NewNodeWidget(n, e)
-		w.Resize(fyne.NewSize(180, 100))
-		w.Move(fyne.NewPos(n.X, n.Y))
+		// 根据索引计算位置
+		pos := e.getNodePosition(i)
+
+		w := NewNodeWidget(n, e, i)
+		// 计算动态高度（基于输入/输出端口数量）
+		maxPorts := len(n.NodeData.Inputs)
+		if len(n.NodeData.Outputs) > maxPorts {
+			maxPorts = len(n.NodeData.Outputs)
+		}
+		nodeHeight := float32(50 + maxPorts*25)
+
+		w.Resize(fyne.NewSize(nodeWidth, nodeHeight))
+		w.Move(pos)
 		newObjects = append(newObjects, w)
 	}
 
@@ -149,16 +174,16 @@ func (e *SkillEditor) CreateMainNodeWidget() fyne.CanvasObject {
 	}
 
 	// 固定宽度，高度自适应，超过最大高度滚动
-	const nodeWidth = 220
-	const maxHeight = 500 // 最大显示高度，超过出现滚动
+	nodeWidth := e.skill.MainNodeWidth
+	maxHeight := e.skill.MainNodeHeight
 
 	scroll := container.NewVScroll(form)
 	scroll.SetMinSize(fyne.NewSize(nodeWidth, 0)) // 高度由内容决定
 
 	// 计算 Form 的最小高度
 	formMin := form.MinSize()
-	height := float32(maxHeight)
-	if (formMin.Height + 80) < float32(height) {
+	height := maxHeight
+	if (formMin.Height + 80) < height {
 		height = formMin.Height + 80
 	}
 	scroll.Resize(fyne.NewSize(nodeWidth, height))
@@ -166,7 +191,7 @@ func (e *SkillEditor) CreateMainNodeWidget() fyne.CanvasObject {
 	// 用 Card 包裹
 	mainCard := widget.NewCard("主节点", "", scroll)
 	mainCard.Resize(scroll.Size())
-	mainCard.Move(fyne.NewPos(100, 50))
+	mainCard.Move(fyne.NewPos(e.skill.MainNodeX, e.skill.MainNodeY))
 
 	return mainCard
 }
@@ -176,7 +201,7 @@ func (e *SkillEditor) SetSkill(skill *Skill) {
 	e.Refresh()
 }
 
-// 添加节点到画布（鼠标点击位置）
+// 添加节点到画布（位置由排列算法自动计算）
 func (e *SkillEditor) AddNode(n *node.Node, pos fyne.Position) {
 	if e.skill == nil {
 		return
@@ -186,8 +211,6 @@ func (e *SkillEditor) AddNode(n *node.Node, pos fyne.Position) {
 		ID:       tool.GenerateUniqueID(),
 		NodeID:   n.ID,
 		NodeData: *n,
-		X:        pos.X,
-		Y:        pos.Y,
 		Inputs:   map[string]string{},
 		Outputs:  map[string][]string{},
 	}
@@ -196,7 +219,59 @@ func (e *SkillEditor) AddNode(n *node.Node, pos fyne.Position) {
 }
 
 // ---------------- 右键菜单 ----------------
+// ShowNodeRightClickMenu 右键点击显示菜单
+// 只有在以下情况才显示菜单：
+// 1. Nodes 为空时，点击主节点区域
+// 2. Nodes 不为空时，只能点击最后一个子节点
 func (e *SkillEditor) ShowNodeRightClickMenu(ev *fyne.PointEvent) {
+	if e.skill == nil {
+		return
+	}
+
+	// 获取相对于 AreaListener 的点击位置
+	clickPos := ev.Position
+
+	// 主节点的位置和大小
+	mainNodeX := e.skill.MainNodeX
+	mainNodeY := e.skill.MainNodeY
+	mainNodeWidth := e.skill.MainNodeWidth
+	mainNodeHeight := e.skill.MainNodeHeight
+
+	// 如果 Nodes 为空，检查是否点击在主节点上
+	if len(e.skill.Nodes) == 0 {
+		inX := clickPos.X >= mainNodeX-5 && clickPos.X <= mainNodeX+mainNodeWidth+5
+		inY := clickPos.Y >= mainNodeY-5 && clickPos.Y <= mainNodeY+mainNodeHeight+5
+		if inX && inY {
+			e.showContextMenu(ev)
+		}
+		return
+	}
+
+	// Nodes 不为空，检查是否点击在最后一个节点上
+	if len(e.skill.Nodes) > 0 {
+		lastNodePos := e.getNodePosition(len(e.skill.Nodes) - 1)
+		lastNode := &e.skill.Nodes[len(e.skill.Nodes)-1]
+
+		// 节点大小（需要动态计算）
+		nodeWidth := float32(180)
+		maxPorts := len(lastNode.NodeData.Inputs)
+		if len(lastNode.NodeData.Outputs) > maxPorts {
+			maxPorts = len(lastNode.NodeData.Outputs)
+		}
+		nodeHeight := float32(50 + maxPorts*25)
+
+		// 检查点击位置是否在最后一个节点范围内
+		// 使用更宽松的边界以处理浮点数精度问题
+		inX := clickPos.X >= lastNodePos.X-5 && clickPos.X <= lastNodePos.X+nodeWidth+5
+		inY := clickPos.Y >= lastNodePos.Y-5 && clickPos.Y <= lastNodePos.Y+nodeHeight+5
+
+		if inX && inY {
+			e.showContextMenu(ev)
+		}
+	}
+}
+
+func (e *SkillEditor) showContextMenu(ev *fyne.PointEvent) {
 	win := fyne.CurrentApp().Driver().AllWindows()[0]
 
 	contextMenu := fyne.NewMenu("")

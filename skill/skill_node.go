@@ -8,9 +8,6 @@ type SkillNode struct {
 	NodeID   string // 对应 Node.ID
 	NodeData node.Node
 
-	X float32
-	Y float32
-
 	Inputs  map[string]string   // inputPortID -> from SkillNodeID
 	Outputs map[string][]string // outputPortID -> to SkillNodeIDs
 }

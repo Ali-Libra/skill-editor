@@ -17,6 +17,12 @@ type Skill struct {
 	Active      int
 
 	Nodes []SkillNode
+
+	// 主节点的位置和大小（不被序列化）
+	MainNodeX      float32 `json:"-"`
+	MainNodeY      float32 `json:"-"`
+	MainNodeWidth  float32 `json:"-"`
+	MainNodeHeight float32 `json:"-"`
 }
 
 type SkillManager struct {
@@ -41,7 +47,14 @@ func NewSkillManager() *SkillManager {
 }
 
 func (m *SkillManager) AddSkill(id, name string) {
-	m.Skills = append(m.Skills, Skill{ID: id, Name: name})
+	m.Skills = append(m.Skills, Skill{
+		ID:             id,
+		Name:           name,
+		MainNodeX:      100,
+		MainNodeY:      50,
+		MainNodeWidth:  220,
+		MainNodeHeight: 500,
+	})
 }
 
 func (m *SkillManager) RemoveSkill(target *Skill) {
@@ -70,4 +83,12 @@ func (m *SkillManager) load() {
 		return
 	}
 	_ = json.Unmarshal(data, &m.Skills)
+
+	// 初始化加载的技能的主节点位置信息
+	for i := range m.Skills {
+		m.Skills[i].MainNodeX = 100
+		m.Skills[i].MainNodeY = 50
+		m.Skills[i].MainNodeWidth = 220
+		m.Skills[i].MainNodeHeight = 500
+	}
 }

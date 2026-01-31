@@ -21,7 +21,12 @@ func NewAreaListener() *AreaListener {
 
 func (a *AreaListener) TappedSecondary(ev *fyne.PointEvent) {
 	if a.OnRightClick != nil {
-		a.OnRightClick(ev)
+		// 创建一个新的 PointEvent，其中 Position 是相对于 AreaListener 的坐标
+		newEv := &fyne.PointEvent{
+			Position:         ev.Position,         // 相对于 AreaListener 的位置
+			AbsolutePosition: ev.AbsolutePosition, // 屏幕绝对位置
+		}
+		a.OnRightClick(newEv)
 	}
 }
 
